@@ -1,0 +1,39 @@
+name: Auto-Update Recycling Data
+
+on:
+  schedule:
+    # Runs at 00:00 UTC (8:00 AM HKT) every day
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    # Allows manual triggering from the Actions tab on GitHub
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required for committing changes back to the repo
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fetch and Compress Latest Data
+        run: node update_data.js
+
+      - name: Commit and Push Changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          if [ -n "$(git status --porcelain data.json)" ]; then
+            echo "Changes detected in data.json. Committing..."
+            git add data.json
+            git commit -m "chore: auto-update recycling dataset [skip ci]"
+            git push
+          else
+            echo "No changes detected in data.json. Skipping commit."
+          fi
