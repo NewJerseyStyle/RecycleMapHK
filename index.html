@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  
+  <!-- SEO Optimization -->
+  <title>RecycleHK 回收易 | 香港回收箱及綠在區區導航地圖</title>
+  <meta name="description" content="隨時隨地查詢香港最近的回收箱及綠在區區（回收環保站/回收便利點）收集點。支援 GPS 自動定位、材質篩選（塑膠、廢紙、金屬、玻璃、充電池等）、智能回收箱及一鍵跳轉 Google Maps 導航。">
+  <meta name="keywords" content="香港回收箱, 綠在區區, 塑膠回收, 充電池回收, 玻璃樽回收, 咪嘥嘢, 回收易, RecycleHK, PWA, 智能回收箱">
+  <link rel="canonical" href="https://yourusername.github.io/recycleApp/">
+  
+  <!-- Favicons & Manifest for PWA -->
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#10b981">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="RecycleHK">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  
+  <!-- App Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="spinner"></div>
+    <div style="font-size: 1.25rem; font-weight: 700; color: var(--primary);">RecycleHK 回收易</div>
+    <div style="font-size: 0.85rem; color: var(--text-muted);">正在載入香港回收點數據...</div>
+  </div>
+
+  <div class="app-container">
+    
+    <!-- Sidebar / Pull-up Bottom Sheet -->
+    <div id="sidebar" class="sidebar">
+      
+      <!-- Drag handle (Visible on Mobile Only) -->
+      <div id="bottom-sheet-handle" class="bottom-sheet-drag-handle">
+        <div class="drag-bar"></div>
+      </div>
+      
+      <!-- App Header & Brand -->
+      <div class="header">
+        <div class="brand">
+          <a href="#" class="logo">
+            <!-- Inline Recycling Leaf Logo SVG -->
+            <svg viewBox="0 0 24 24">
+              <path d="M12 2A10 10 0 0 0 2 12a10 10 0 0 0 10 10 10 10 0 0 0 10-10A10 10 0 0 0 12 2m-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            </svg>
+            <span><strong>RecycleHK</strong> 回收易</span>
+          </a>
+          <button id="gps-btn" class="gps-btn">
+            <svg style="width: 1.1rem; height: 1.1rem; fill: currentColor;" viewBox="0 0 24 24">
+              <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1c0-.55-.45-1-1-1s-1 .45-1 1v2.06C6.83 3.52 3.52 6.83 3.06 11H1c-.55 0-1 .45-1 1s.45 1 1 1h2.06c.46 4.17 3.77 7.48 7.94 7.94V23c0 .55.45 1 1 1s1-.45 1-1v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23c.55 0 1-.45 1-1s-.45-1-1-1h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
+            </svg>
+            <span>定位最近</span>
+          </button>
+        </div>
+        
+        <!-- Text Search -->
+        <div class="search-box">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="search-input" class="search-input" placeholder="搜尋街道、大廈、回收點名稱...">
+        </div>
+      </div>
+
+      <!-- PWA Install Banner -->
+      <div id="install-banner" class="install-banner" style="display: none;">
+        <span class="install-text">安裝「回收易」隨時離線查詢回收箱！</span>
+        <button id="install-app-btn" class="install-btn">安裝</button>
+      </div>
+
+      <!-- Material Filters Tag Carousel -->
+      <div id="material-filters" class="filters-container">
+        <!-- Javascript dynamic pills -->
+      </div>
+
+      <!-- Advanced Quick Toggles & District Select -->
+      <div class="advanced-filters">
+        <button id="smart-toggle" class="adv-btn">智能回收箱</button>
+        <button id="green-toggle" class="adv-btn">綠在區區</button>
+        
+        <div class="district-wrapper">
+          <select id="district-select" class="district-select">
+            <!-- Javascript dynamic options -->
+          </select>
+        </div>
+      </div>
+
+      <!-- Special Recycle Callout Banner -->
+      <div style="padding: 0.75rem 1.25rem 0 1.25rem;">
+        <div id="special-green-banner" class="green-info-banner" style="display: none;">
+          <div class="green-info-title">
+            <svg viewBox="0 0 24 24" style="width: 1.1rem; height: 1.1rem; fill: currentColor;"><path d="M12 2A10 10 0 0 0 2 12a10 10 0 0 0 10 10 10 10 0 0 0 10-10A10 10 0 0 0 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            <span>回收小貼士</span>
+          </div>
+          <div class="green-info-desc">
+            您選擇的「<span id="special-material-name">特殊物品</span>」屬於特殊回收物，建議提交至「綠在區區」站點以獲取綠綠賞獎賞積分並確保妥善處理。
+          </div>
+          <div class="green-info-links">
+            <span id="view-green-info-btn" class="green-link">了解「綠在區區」及智能積分</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- List Results Header info -->
+      <div style="padding: 0.75rem 1.25rem 0.25rem 1.25rem; font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: flex; justify-content: space-between;">
+        <span>搜尋結果</span>
+        <span>共找到 <span id="results-count">0</span> 個回收點 (只顯示前 100 個)</span>
+      </div>
+
+      <!-- Scrollable Cards List -->
+      <div id="results-list" class="results-list">
+        <!-- Javascript dynamically built cards -->
+      </div>
+      
+    </div>
+
+    <!-- Interactive Leaflet Map Section -->
+    <div id="map-container" class="map-container">
+      <div id="map"></div>
+    </div>
+    
+  </div>
+
+  <!-- Leaflet Map JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <!-- App JS -->
+  <script src="app.js"></script>
+</body>
+</html>
