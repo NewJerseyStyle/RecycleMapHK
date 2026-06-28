@@ -138,5 +138,24 @@
   
   <!-- App JS -->
   <script src="app.js"></script>
+
+  <!-- Firebase Analytics -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-analytics.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAnLReVFFYo376JMCnuecied7eAfE6XjU0",
+      authDomain: "recyclemap-hk.firebaseapp.com",
+      projectId: "recyclemap-hk",
+      storageBucket: "recyclemap-hk.firebasestorage.app",
+      messagingSenderId: "1059238403555",
+      appId: "1:1059238403555:web:493d7f893b4a531d3d54d6",
+      measurementId: "G-FDS9ZYG8RV"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+  </script>
 </body>
 </html>
