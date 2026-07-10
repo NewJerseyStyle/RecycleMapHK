@@ -1,4 +1,4 @@
-const CACHE_NAME = 'recyclehk-v2';
+const CACHE_NAME = 'recyclehk-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -7,8 +7,13 @@ const ASSETS = [
   './firebase-checkin.js',
   './manifest.json',
   './data.json',
-  './icon-192.png',
-  './icon-512.png',
+  './icons/icon-72.png',
+  './icons/icon-96.png',
+  './icons/icon-120.png',
+  './icons/icon-144.png',
+  './icons/icon-180.png',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
 ];
