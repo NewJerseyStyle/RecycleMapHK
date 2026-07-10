@@ -1,9 +1,10 @@
-const CACHE_NAME = 'recyclehk-v1';
+const CACHE_NAME = 'recyclehk-v2';
 const ASSETS = [
   './',
   './index.html',
   './style.css',
   './app.js',
+  './firebase-checkin.js',
   './manifest.json',
   './data.json',
   './icon-192.png',

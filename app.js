@@ -3,16 +3,19 @@ const STATE = {
   data: null,
   userCoords: null,
   userMarker: null,
-  activeFilter: null, // index of active waste type
-  selectedDistrict: -1, // index of active district
+  activeFilter: null,
+  selectedDistrict: -1,
   showSmartOnly: false,
   showGreenOnly: false,
   searchQuery: '',
   map: null,
   markersGroup: null,
-  activeMarkersMap: new Map(), // cpId -> Leaflet marker
-  bottomSheetState: 'mid', // collapsed (80px), mid (50vh), expanded (85vh)
-  currentTileLayer: null
+  activeMarkersMap: new Map(),
+  bottomSheetState: 'mid',
+  currentTileLayer: null,
+  districtScores: {},
+  leaderboardVisible: false,
+  leaderboardUnsubscribe: null
 };
 
 // District TC Translations
@@ -96,8 +99,8 @@ async function initApp() {
     // 7. Setup Drag Gestures for Mobile Bottom Sheet
     initBottomSheetGesture();
     
-    // 8. Auto-Locate User (optional, trigger politely or wait for button click)
-    // For good UX, we wait for the user to tap "Locate Me" or trigger on startup
+    // 8. Init Check-in UI (after a tick so Firebase module has time to attach window.rhk)
+    setTimeout(initCheckIn, 100);
   } catch (error) {
     console.error('Failed to initialize app:', error);
     alert('載入數據失敗，請重新整理頁面。');
@@ -768,6 +771,166 @@ function snapBottomSheet(state) {
     sidebar.style.height = '85vh';
   }
 }
+
+// ─── Check-in & Leaderboard ───────────────────────────────────────────────
+
+function initCheckIn() {
+  const status = window.rhk ? window.rhk.getStatus() : { checkedInToday: false, streak: 0 };
+  applyCheckInStatus(status);
+  document.getElementById('checkin-btn').addEventListener('click', handleCheckIn);
+  document.getElementById('leaderboard-toggle-btn').addEventListener('click', toggleLeaderboard);
+  document.getElementById('leaderboard-close-btn').addEventListener('click', toggleLeaderboard);
+}
+
+function applyCheckInStatus(status) {
+  const btn = document.getElementById('checkin-btn');
+  const msg = document.getElementById('checkin-msg');
+  const badge = document.getElementById('streak-badge');
+
+  if (status.checkedInToday) {
+    btn.classList.add('checked-in');
+    btn.disabled = true;
+    msg.textContent = '✅ 今日已打卡，明天再來！';
+  }
+
+  if (status.streak > 0) {
+    badge.style.display = 'inline-flex';
+    document.getElementById('streak-count').textContent = status.streak;
+    badge.classList.toggle('streak-hot', status.streak >= 3);
+  }
+}
+
+async function handleCheckIn() {
+  const btn = document.getElementById('checkin-btn');
+  const msg = document.getElementById('checkin-msg');
+  if (btn.disabled) return;
+
+  btn.classList.add('loading');
+  msg.textContent = '';
+
+  const doCheckin = async (lat, lng) => {
+    const nearest = findNearestRecyclingPoint(lat, lng);
+    if (!nearest) {
+      btn.classList.remove('loading');
+      msg.textContent = '📍 請前往回收點後再打卡（需在50米範圍內）';
+      btn.classList.add('shake');
+      setTimeout(() => btn.classList.remove('shake'), 600);
+      return;
+    }
+
+    const districtIndex = nearest.point[1];
+    const result = window.rhk
+      ? await window.rhk.recordCheckIn(districtIndex)
+      : { success: false, reason: 'not_ready' };
+
+    btn.classList.remove('loading');
+
+    if (result.success) {
+      btn.classList.add('checked-in');
+      btn.disabled = true;
+      const distName = DISTRICTS_TC[districtIndex];
+      msg.textContent = `🎉 打卡成功！+5分 (${distName})`;
+      if (result.streak >= 3) msg.textContent += ` 🔥 連續${result.streak}天！`;
+
+      const badge = document.getElementById('streak-badge');
+      badge.style.display = 'inline-flex';
+      document.getElementById('streak-count').textContent = result.streak;
+      badge.classList.toggle('streak-hot', result.streak >= 3);
+    } else if (result.reason === 'already_checked_in') {
+      btn.classList.add('checked-in');
+      btn.disabled = true;
+      msg.textContent = '✅ 今日已打卡，明天再來！';
+    } else {
+      btn.classList.remove('loading');
+      msg.textContent = '⚠️ 服務連線中，請稍後再試。';
+    }
+  };
+
+  if (STATE.userCoords) {
+    await doCheckin(STATE.userCoords.lat, STATE.userCoords.lgt);
+  } else {
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        STATE.userCoords = { lat: pos.coords.latitude, lgt: pos.coords.longitude };
+        drawUserMarker();
+        computeDistances();
+        renderList();
+        renderMarkers();
+        await doCheckin(STATE.userCoords.lat, STATE.userCoords.lgt);
+      },
+      () => {
+        btn.classList.remove('loading');
+        msg.textContent = '⚠️ 請先開啟定位功能才能打卡。';
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }
+}
+
+function findNearestRecyclingPoint(lat, lng) {
+  if (!STATE.data) return null;
+  let nearest = null;
+  let nearestKm = Infinity;
+
+  STATE.data.points.forEach(point => {
+    const d = calculateHaversine(lat, lng, point[4], point[5]);
+    if (d < nearestKm) { nearestKm = d; nearest = point; }
+  });
+
+  return nearestKm * 1000 <= 50 ? { point: nearest, distanceM: nearestKm * 1000 } : null;
+}
+
+function toggleLeaderboard() {
+  STATE.leaderboardVisible = !STATE.leaderboardVisible;
+
+  const panel = document.getElementById('leaderboard-panel');
+  const list = document.getElementById('results-list');
+  const countRow = document.getElementById('results-count-row');
+  const toggleBtn = document.getElementById('leaderboard-toggle-btn');
+
+  panel.style.display = STATE.leaderboardVisible ? 'flex' : 'none';
+  list.style.display = STATE.leaderboardVisible ? 'none' : 'flex';
+  if (countRow) countRow.style.display = STATE.leaderboardVisible ? 'none' : 'flex';
+  toggleBtn.classList.toggle('active', STATE.leaderboardVisible);
+
+  if (STATE.leaderboardVisible && !STATE.leaderboardUnsubscribe) {
+    if (window.rhk) {
+      STATE.leaderboardUnsubscribe = window.rhk.subscribeDistrictScores((scores) => {
+        STATE.districtScores = scores;
+        renderLeaderboard(scores);
+      });
+    } else {
+      renderLeaderboard({});
+    }
+  } else if (STATE.leaderboardVisible) {
+    renderLeaderboard(STATE.districtScores);
+  }
+
+  if (STATE.leaderboardVisible && window.innerWidth <= 768) {
+    snapBottomSheet('expanded');
+  }
+}
+
+function renderLeaderboard(scores) {
+  const container = document.getElementById('leaderboard-list');
+  if (!container) return;
+
+  const ranked = DISTRICTS_TC
+    .map((name, i) => ({ name, i, score: scores[i] || 0 }))
+    .sort((a, b) => b.score - a.score);
+
+  const medals = ['🥇', '🥈', '🥉'];
+
+  container.innerHTML = ranked.map((d, rank) => `
+    <div class="leaderboard-item${rank < 3 ? ' leaderboard-top' : ''}">
+      <span class="lb-rank">${rank < 3 ? medals[rank] : rank + 1}</span>
+      <span class="lb-name">${d.name}</span>
+      <span class="lb-score">${d.score > 0 ? d.score.toLocaleString() + ' 分' : '—'}</span>
+    </div>
+  `).join('');
+}
+
+// ─── 綠在區區 Modal ───────────────────────────────────────────────────────────
 
 // Display "綠在區區" Modal Guide
 function showGreenInfoModal() {

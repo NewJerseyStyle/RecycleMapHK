@@ -1,0 +1,16 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // District leaderboard: anyone can read, check-in writes are allowed
+    match /district_scores/{districtId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    // Daily check-ins: users can only write their own records
+    match /checkins/{checkinId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if false;
+    }
+  }
+}

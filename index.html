@@ -81,6 +81,29 @@
         <button id="install-app-btn" class="install-btn">安裝</button>
       </div>
 
+      <!-- Check-in Section -->
+      <div id="checkin-section" class="checkin-section">
+        <div class="checkin-meta">
+          <span id="streak-badge" class="streak-badge" style="display:none">
+            🔥 連續 <span id="streak-count">1</span> 天
+          </span>
+          <button id="leaderboard-toggle-btn" class="leaderboard-toggle-btn">
+            <svg viewBox="0 0 24 24" style="width:1rem;height:1rem;fill:currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+            <span>排行榜</span>
+          </button>
+        </div>
+        <button id="checkin-btn" class="checkin-btn">
+          <svg class="checkin-icon" viewBox="0 0 24 24">
+            <path d="M21 8.4C19.4 5.2 16.1 3 12.3 3 7.5 3 3.5 6.5 3 11H1l3 4 3-4H5c.5-3.4 3.5-6 7.3-6 3 0 5.6 1.7 7 4.2L21 8.4zm-2 7.2l-3-4-3 4h2c-.5 3.4-3.5 6-7.3 6-3 0-5.6-1.7-7-4.2L3 18.6C4.6 21.8 7.9 24 11.7 24 16.5 24 20.5 20.5 21 16h2l-4-4z"/>
+          </svg>
+          <div class="checkin-btn-text">
+            <span>我今天回收了！</span>
+            <span class="checkin-pts">＋5 分</span>
+          </div>
+        </button>
+        <p id="checkin-msg" class="checkin-msg"></p>
+      </div>
+
       <!-- Material Filters Tag Carousel -->
       <div id="material-filters" class="filters-container">
         <!-- Javascript dynamic pills -->
@@ -115,9 +138,20 @@
       </div>
 
       <!-- List Results Header info -->
-      <div style="padding: 0.75rem 1.25rem 0.25rem 1.25rem; font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: flex; justify-content: space-between;">
+      <div id="results-count-row" style="padding: 0.75rem 1.25rem 0.25rem 1.25rem; font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: flex; justify-content: space-between;">
         <span>搜尋結果</span>
         <span>共找到 <span id="results-count">0</span> 個回收點 (只顯示前 100 個)</span>
+      </div>
+
+      <!-- Leaderboard Panel (toggled) -->
+      <div id="leaderboard-panel" class="leaderboard-panel" style="display:none">
+        <div class="leaderboard-hdr">
+          <span>🏆 18區回收排行榜</span>
+          <button id="leaderboard-close-btn" class="leaderboard-close-btn">關閉</button>
+        </div>
+        <div id="leaderboard-list" class="leaderboard-list">
+          <div style="text-align:center;padding:2rem;color:var(--text-muted)">載入中...</div>
+        </div>
       </div>
 
       <!-- Scrollable Cards List -->
@@ -140,23 +174,7 @@
   <!-- App JS -->
   <script src="app.js"></script>
 
-  <!-- Firebase Analytics -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-analytics.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyAnLReVFFYo376JMCnuecied7eAfE6XjU0",
-      authDomain: "recyclemap-hk.firebaseapp.com",
-      projectId: "recyclemap-hk",
-      storageBucket: "recyclemap-hk.firebasestorage.app",
-      messagingSenderId: "1059238403555",
-      appId: "1:1059238403555:web:493d7f893b4a531d3d54d6",
-      measurementId: "G-FDS9ZYG8RV"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
-  </script>
+  <!-- Firebase: Analytics + Firestore check-in module -->
+  <script type="module" src="firebase-checkin.js"></script>
 </body>
 </html>
