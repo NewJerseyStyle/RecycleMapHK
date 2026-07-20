@@ -1,0 +1,12 @@
+{
+  "appId": "io.github.newjerseystyle.recyclemaphk",
+  "appName": "RecycleHK",
+  "webDir": "dist",
+  "backgroundColor": "#064e3b",
+  "android": {
+    "allowMixedContent": false
+  },
+  "ios": {
+    "contentInset": "automatic"
+  }
+}

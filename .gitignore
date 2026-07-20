@@ -1,0 +1,15 @@
+node_modules/
+dist/
+mobile-assets/
+
+# Native projects are generated reproducibly by the mobile workflow.
+/android/app/
+/android/build.gradle
+/android/capacitor.settings.gradle
+/android/gradle.properties
+/android/gradlew
+/android/gradlew.bat
+/android/settings.gradle
+/android/variables.gradle
+/android/.idea/
+/ios/

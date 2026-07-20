@@ -1,0 +1,178 @@
+name: Build Mobile Apps
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "index.html"
+      - "style.css"
+      - "app.js"
+      - "firebase-checkin.js"
+      - "data.json"
+      - "manifest.json"
+      - "sw.js"
+      - "icons/**"
+      - "scripts/**"
+      - "package.json"
+      - "package-lock.json"
+      - "capacitor.config.json"
+      - ".github/workflows/build_mobile.yml"
+  pull_request:
+    paths:
+      - "index.html"
+      - "style.css"
+      - "app.js"
+      - "firebase-checkin.js"
+      - "data.json"
+      - "manifest.json"
+      - "sw.js"
+      - "icons/**"
+      - "scripts/**"
+      - "package.json"
+      - "package-lock.json"
+      - "capacitor.config.json"
+      - ".github/workflows/build_mobile.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    name: Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare PWA bundle
+        run: npm run build:web
+
+      - name: Generate Android project and assets
+        run: |
+          mv android android-pwa-icons
+          npx cap add android
+          npx @capacitor/assets generate --android --assetPath mobile-assets --iconBackgroundColor '#064e3b' --splashBackgroundColor '#064e3b'
+          npm run native:configure -- android
+          npx cap sync android
+
+      - name: Build APK and unsigned App Bundle
+        working-directory: android
+        run: ./gradlew assembleDebug bundleRelease --stacktrace
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: recyclehk-android-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            android/app/build/outputs/bundle/release/app-release.aab
+
+  ios:
+    name: iOS
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare PWA bundle
+        run: npm run build:web
+
+      - name: Generate iOS project and assets
+        run: |
+          npx cap add ios --packagemanager SPM
+          npx @capacitor/assets generate --ios --assetPath mobile-assets --iconBackgroundColor '#064e3b' --splashBackgroundColor '#064e3b'
+          npm run native:configure -- ios
+          npx cap sync ios
+
+      - name: Build unsigned iOS app
+        run: |
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build/ios \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+          ditto -c -k --sequesterRsrc --keepParent \
+            build/ios/Build/Products/Release-iphoneos/App.app \
+            build/RecycleHK-unsigned.app.zip
+
+      - name: Upload iOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: recyclehk-ios-unsigned-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            build/RecycleHK-unsigned.app.zip
+            ios/App/
+
+  # Publishing intentionally stays disabled until the bundle IDs, store listings,
+  # signing credentials, and repository secrets have been registered.
+  publish-android-draft:
+    name: Publish Android (disabled draft)
+    if: ${{ false }}
+    needs: android
+    runs-on: ubuntu-latest
+    steps:
+      # Enable this job only after adding signing and Play Console secrets.
+      # Replace the TODO with download-artifact, jarsigner, and:
+      # - uses: r0adkll/upload-google-play@v1
+      #   with:
+      #     serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+      #     packageName: io.github.newjerseystyle.recyclemaphk
+      #     releaseFiles: app-release-signed.aab
+      #     tracks: internal
+      #     status: draft
+      - run: echo "TODO - sign the release AAB, then upload it with Google Play service-account credentials."
+
+  publish-ios-draft:
+    name: Publish iOS (disabled draft)
+    if: ${{ false }}
+    needs: ios
+    runs-on: macos-15
+    steps:
+      # Enable this job only after adding Apple signing and App Store Connect secrets.
+      # Replace the TODO with certificate/profile import, a signed IPA export, and:
+      # - uses: apple-actions/upload-testflight-build@v4
+      #   with:
+      #     app-path: build/RecycleHK.ipa
+      #     issuer-id: ${{ vars.APPSTORE_ISSUER_ID }}
+      #     api-key-id: ${{ vars.APPSTORE_API_KEY_ID }}
+      #     api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+      - run: echo "TODO - import the Apple certificate/profile, create a signed IPA, then upload it to TestFlight."

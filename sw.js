@@ -1,4 +1,4 @@
-const CACHE_NAME = 'recyclehk-v3';
+const CACHE_NAME = 'recyclehk-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -14,6 +14,8 @@ const ASSETS = [
   './icons/icon-180.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  'https://cdn.jsdelivr.net/npm/driver.js@1.7.0/dist/driver.css',
+  'https://cdn.jsdelivr.net/npm/driver.js@1.7.0/dist/driver.js.iife.js',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
 ];
@@ -50,7 +52,9 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   // Let browser extensions handle their own requests
-  if (!event.request.url.startsWith(self.location.origin) && !event.request.url.startsWith('https://unpkg.com/')) {
+  if (!event.request.url.startsWith(self.location.origin)
+    && !event.request.url.startsWith('https://unpkg.com/')
+    && !event.request.url.startsWith('https://cdn.jsdelivr.net/')) {
     return;
   }
 

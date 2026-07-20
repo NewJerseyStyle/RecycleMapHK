@@ -15,8 +15,12 @@ const STATE = {
   currentTileLayer: null,
   districtScores: {},
   leaderboardVisible: false,
-  leaderboardUnsubscribe: null
+  leaderboardUnsubscribe: null,
+  startTutorialAfterLeaderboard: false
 };
+
+const TUTORIAL_STORAGE_KEY = 'rhk_tutorial_completed_v1';
+const SUNDAY_LEADERBOARD_STORAGE_KEY = 'rhk_sunday_leaderboard_date';
 
 // District TC Translations
 const DISTRICTS_TC = [
@@ -675,6 +679,7 @@ function bindEvents() {
 
   // 綠在區區 Information Drawer Trigger
   document.getElementById('view-green-info-btn').addEventListener('click', showGreenInfoModal);
+  document.getElementById('tutorial-btn').addEventListener('click', () => startTutorial(true));
 }
 
 // PWA Install Prompt handling
@@ -780,6 +785,140 @@ function initCheckIn() {
   document.getElementById('checkin-btn').addEventListener('click', handleCheckIn);
   document.getElementById('leaderboard-toggle-btn').addEventListener('click', toggleLeaderboard);
   document.getElementById('leaderboard-close-btn').addEventListener('click', toggleLeaderboard);
+  setTimeout(runStartupExperience, 250);
+}
+
+function getLocalDateKey(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function readLocalSetting(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch (error) {
+    console.warn('Local storage is unavailable:', error.message);
+    return null;
+  }
+}
+
+function saveLocalSetting(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch (error) {
+    console.warn('Unable to save local setting:', error.message);
+  }
+}
+
+function runStartupExperience() {
+  const today = new Date();
+  const todayKey = getLocalDateKey(today);
+  const tutorialPending = readLocalSetting(TUTORIAL_STORAGE_KEY) !== 'true';
+  const sundayLeaderboardPending = today.getDay() === 0
+    && readLocalSetting(SUNDAY_LEADERBOARD_STORAGE_KEY) !== todayKey;
+
+  if (sundayLeaderboardPending) {
+    saveLocalSetting(SUNDAY_LEADERBOARD_STORAGE_KEY, todayKey);
+    STATE.startTutorialAfterLeaderboard = tutorialPending;
+    setLeaderboardVisibility(true);
+    return;
+  }
+
+  if (tutorialPending) startTutorial();
+}
+
+function startTutorial(force = false) {
+  if (!force && readLocalSetting(TUTORIAL_STORAGE_KEY) === 'true') return;
+
+  const driverFactory = window.driver?.js?.driver;
+  if (!driverFactory) {
+    console.warn('Driver.js is unavailable; tutorial skipped.');
+    return;
+  }
+
+  if (STATE.leaderboardVisible) setLeaderboardVisibility(false, false);
+
+  const tour = driverFactory({
+    popoverClass: 'recyclehk-tour',
+    showProgress: true,
+    progressText: '第 {{current}}／{{total}} 步',
+    nextBtnText: '下一步',
+    prevBtnText: '上一步',
+    doneBtnText: '完成',
+    allowClose: true,
+    allowKeyboardControl: true,
+    smoothScroll: true,
+    overlayOpacity: 0.68,
+    stagePadding: 8,
+    stageRadius: 14,
+    onDestroyed: () => saveLocalSetting(TUTORIAL_STORAGE_KEY, 'true'),
+    steps: [
+      {
+        element: '.brand',
+        popover: {
+          title: '歡迎使用 RecycleHK 回收易',
+          description: '這個簡短教學會帶你尋找附近回收點、篩選物料和每日回收打卡。',
+          side: 'bottom',
+          align: 'start'
+        }
+      },
+      {
+        element: '#gps-btn',
+        popover: {
+          title: '找出最近回收點',
+          description: '按「定位最近」並允許定位，即可按距離查看附近回收點。',
+          side: 'bottom',
+          align: 'end'
+        }
+      },
+      {
+        element: '#search-input',
+        popover: {
+          title: '搜尋地點',
+          description: '輸入街道、大廈、地區或回收點名稱，地圖和清單會同步更新。',
+          side: 'bottom',
+          align: 'center'
+        }
+      },
+      {
+        element: '#material-filters',
+        popover: {
+          title: '選擇回收物料',
+          description: '左右滑動並選擇塑膠、廢紙、玻璃樽、充電池等物料。',
+          side: 'bottom',
+          align: 'start'
+        }
+      },
+      {
+        element: '.advanced-filters',
+        popover: {
+          title: '進階篩選',
+          description: '可只顯示智能回收箱、綠在區區，或直接選擇香港十八區。',
+          side: 'bottom',
+          align: 'start'
+        }
+      },
+      {
+        element: '#checkin-section',
+        popover: {
+          title: '每日回收打卡',
+          description: '到達回收點 50 米範圍內即可打卡、累積分數和連續回收日數；也可查看各區排行榜。',
+          side: 'bottom',
+          align: 'start'
+        }
+      },
+      {
+        element: '#map-container',
+        popover: {
+          title: '地圖及導航',
+          description: '點選地圖標記查看詳情，再一鍵開啟 Google Maps 前往回收點。',
+          side: 'left',
+          align: 'center'
+        }
+      }
+    ]
+  });
+
+  tour.drive();
 }
 
 function applyCheckInStatus(status) {
@@ -881,7 +1020,11 @@ function findNearestRecyclingPoint(lat, lng) {
 }
 
 function toggleLeaderboard() {
-  STATE.leaderboardVisible = !STATE.leaderboardVisible;
+  setLeaderboardVisibility(!STATE.leaderboardVisible);
+}
+
+function setLeaderboardVisibility(visible, resumeTutorial = true) {
+  STATE.leaderboardVisible = visible;
 
   const panel = document.getElementById('leaderboard-panel');
   const list = document.getElementById('results-list');
@@ -908,6 +1051,11 @@ function toggleLeaderboard() {
 
   if (STATE.leaderboardVisible && window.innerWidth <= 768) {
     snapBottomSheet('expanded');
+  }
+
+  if (!STATE.leaderboardVisible && resumeTutorial && STATE.startTutorialAfterLeaderboard) {
+    STATE.startTutorialAfterLeaderboard = false;
+    setTimeout(() => startTutorial(), 250);
   }
 }
 

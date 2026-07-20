@@ -1,0 +1,22 @@
+{
+  "name": "recyclemaphk-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Native Android and iOS wrappers for the RecycleHK PWA",
+  "scripts": {
+    "build:web": "node scripts/prepare-mobile-web.mjs",
+    "native:configure": "node scripts/configure-native.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.4.0",
+    "@capacitor/core": "8.4.0",
+    "@capacitor/ios": "8.4.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "3.0.5",
+    "@capacitor/cli": "8.4.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
